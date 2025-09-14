@@ -144,43 +144,27 @@ def send_email_notification(subject, body):
         
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
         server.starttls()
-        # NOTE: If you are using Gmail with 2-Step Verification, you MUST use an App Password here.
         server.login(EMAIL_SENDER, EMAIL_PASSWORD)
         server.send_message(msg)
         server.quit()
         app.logger.info("Email notification sent successfully.")
     except Exception as e:
         app.logger.error(f"Failed to send email: {e}", exc_info=True)
+        return False
+    return True
 
-@app.route('/send-order-confirmation', methods=['POST'])
-def send_order_confirmation():
-    data = request.json
-    
-    # Extract order details from the request body
-    customer_name = data.get('customer_name', 'N/A')
-    customer_phone = data.get('customer_phone', 'N/A')
-    order_details = data.get('order_details', 'N/A')
-    special_instructions = data.get('special_instructions', 'N/A')
-    total_amount = data.get('total_amount', 'N/A')
-    delivery_address = data.get('delivery_address', 'N/A')
-    recipient_phone_number = data.get('recipient_phone', 'N/A')
-
-    # Format the message for WhatsApp using a template
-    # This will use a pre-approved template named "hello_world"
-    # To use a dynamic message with variables, you would need to create a new template
-    # and use the "components" field in the payload.
-    
-    # NOTE: The recipient phone number is hardcoded here to match the curl command
-    # for testing purposes. In a real scenario, you would use recipient_phone_number
-    # from the ManyChat payload.
-    recipient_phone_number = '923332252591'
-
+def send_whatsapp_message(customer_name, order_details, total_amount, delivery_address, recipient_phone_number):
+    """Sends a WhatsApp message using a pre-approved template."""
     url = f'https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages'
     headers = {
         'Authorization': f'Bearer {ACCESS_TOKEN}',
         'Content-Type': 'application/json'
     }
     
+    # NOTE: The recipient phone number is hardcoded for testing.
+    # In a real scenario, you would use recipient_phone_number from the ManyChat payload.
+    recipient_phone_number = '923332252591'
+
     # Updated payload to use a template message
     payload = {
         "messaging_product": "whatsapp",
@@ -196,37 +180,57 @@ def send_order_confirmation():
 
     try:
         response = requests.post(url, headers=headers, data=json.dumps(payload))
-        response.raise_for_status() # This will raise an exception for 4xx/5xx status codes
-        
-        # Log the full API response for debugging
+        response.raise_for_status()
         app.logger.info(f"WhatsApp API response: {response.json()}")
-
-        # Format the message for email
-        email_subject = "New Order Received from Mobile AI Agent"
-        email_body = f"""
-        A new order has been received via your mobile AI agent.
-
-        Customer Details:
-        Name: {customer_name}
-        Contact #: {customer_phone}
-        Address: {delivery_address}
-
-        Order Details:
-        {order_details}
-
-        Amount: {total_amount} PKR
-
-        Special Instructions:
-        {special_instructions}
-        
-        Thank you!
-        """
-        send_email_notification(email_subject, email_body)
-        
-        return jsonify({'status': 'success', 'message': 'WhatsApp and email notifications sent.'}), 200
+        return True
     except requests.exceptions.RequestException as e:
         app.logger.error(f"Error sending WhatsApp message: {e}", exc_info=True)
-        return jsonify({'status': 'error', 'message': f'Failed to send message: {str(e)}'}), 500
+        return False
+
+@app.route('/send-whatsapp', methods=['POST'])
+def handle_whatsapp_request():
+    data = request.json
+    success = send_whatsapp_message(
+        customer_name=data.get('customer_name'),
+        order_details=data.get('order_details'),
+        total_amount=data.get('total_amount'),
+        delivery_address=data.get('delivery_address'),
+        recipient_phone_number=data.get('recipient_phone')
+    )
+    if success:
+        return jsonify({'status': 'success', 'message': 'WhatsApp message sent.'}), 200
+    else:
+        return jsonify({'status': 'error', 'message': 'Failed to send WhatsApp message.'}), 500
+
+@app.route('/send-email', methods=['POST'])
+def handle_email_request():
+    data = request.json
+    
+    email_subject = "New Order Received from Mobile AI Agent"
+    email_body = f"""
+    A new order has been received via your mobile AI agent.
+
+    Customer Details:
+    Name: {data.get('customer_name')}
+    Contact #: {data.get('customer_phone')}
+    Address: {data.get('delivery_address')}
+
+    Order Details:
+    {data.get('order_details')}
+
+    Amount: {data.get('total_amount')} PKR
+
+    Special Instructions:
+    {data.get('special_instructions')}
+    
+    Thank you!
+    """
+    
+    success = send_email_notification(email_subject, email_body)
+    if success:
+        return jsonify({'status': 'success', 'message': 'Email notification sent.'}), 200
+    else:
+        return jsonify({'status': 'error', 'message': 'Failed to send email notification.'}), 500
 
 if __name__ == '__main__':
     # In production, you would use a WSGI server like Gunicorn
