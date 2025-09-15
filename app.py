@@ -26,7 +26,10 @@ PHONE_NUMBER_ID = '559620697225153'
 # NOTE: This information is sensitive. Use environment variables in a production environment.
 EMAIL_SENDER = 'fsaiagent@foodsspot.com'
 EMAIL_PASSWORD = 'L@khani#123' # Use an app-specific password if using Gmail
-EMAIL_RECEIVER = 'lakhanino1@gmail.com' # The email address to receive order notifications
+# You can now add multiple email addresses in a list
+EMAIL_RECEIVER = ['lakhanino1@gmail.com']
+# You can also add a list of email addresses to CC
+EMAIL_CC = ['second_email@example.com']
 SMTP_SERVER = 'smtp.hostinger.com'
 SMTP_PORT = 587
 
@@ -138,14 +141,19 @@ def send_email_notification(subject, body):
     try:
         msg = MIMEMultipart()
         msg['From'] = EMAIL_SENDER
-        msg['To'] = EMAIL_RECEIVER
+        # Join the list of recipients into a comma-separated string for the 'To' header
+        msg['To'] = ", ".join(EMAIL_RECEIVER)
+        if EMAIL_CC:
+            msg['Cc'] = ", ".join(EMAIL_CC)
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain'))
         
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
         server.starttls()
         server.login(EMAIL_SENDER, EMAIL_PASSWORD)
-        server.send_message(msg)
+        # Pass the list of recipients directly to the sendmail function
+        all_recipients = EMAIL_RECEIVER + EMAIL_CC
+        server.sendmail(EMAIL_SENDER, all_recipients, msg.as_string())
         server.quit()
         app.logger.info("Email notification sent successfully.")
     except Exception as e:
@@ -235,3 +243,4 @@ def handle_email_request():
 if __name__ == '__main__':
     # In production, you would use a WSGI server like Gunicorn
     app.run(host='0.0.0.0', port=5000)
+
