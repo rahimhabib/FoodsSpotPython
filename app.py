@@ -15,21 +15,25 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 app.logger.setLevel(logging.INFO)
 
-# Replace with your WhatsApp Business Account ID, Access Token, and Phone Number ID
-# NOTE: This information is sensitive. It's best practice to use environment variables in a production environment.
-# You MUST replace these placeholders with your actual values.
-WHATSAPP_BUSINESS_ID = '515158285015725'
-ACCESS_TOKEN = 'EAARi2FEsmAcBPdMggK6qZBridtYb2r0y19xpEg7w1JTdYwUVOImLIgz9S18SahKLEidyH4r6018vtgUB5Sw6UARrQ2qtyTZC7MahtU2HW47tjBBuDMGhZBZCgWyR0ukSxkcolclIDLh6oZCYk5g8Tf6Mo9OOYR8yBv9bKbpBj89ogNyxUIkksp0r1zA8iyt52pOnQ6ROpCDv1VFQxkteEN7w3XaJP3LRDrERLpSOjZAgUZD'
-PHONE_NUMBER_ID = '559620697225153'
+# ---
+# Environment Variable Configuration
+# It's a security best practice to load sensitive information from environment variables
+# to avoid hardcoding credentials in your source code.
+# ---
 
-# Email configuration
-# NOTE: This information is sensitive. Use environment variables in a production environment.
-EMAIL_SENDER = 'fsaiagent@foodsspot.com'
-EMAIL_PASSWORD = 'L@khani#123' # Use an app-specific password if using Gmail
-# You can now add multiple email addresses in a list
-EMAIL_RECEIVER = ['lakhanino1@gmail.com']
-# You can also add a list of email addresses to CC
-EMAIL_CC = ['second_email@example.com']
+# Load sensitive variables from the environment
+WHATSAPP_BUSINESS_ID = os.getenv('WHATSAPP_BUSINESS_ID')
+ACCESS_TOKEN = os.getenv('WHATSAPP_ACCESS_TOKEN')
+PHONE_NUMBER_ID = os.getenv('WHATSAPP_PHONE_NUMBER_ID')
+
+EMAIL_SENDER = os.getenv('EMAIL_SENDER')
+EMAIL_PASSWORD = os.getenv('EMAIL_PASSWORD')
+# To handle multiple emails from a single environment variable, we split the string by commas
+EMAIL_RECEIVER_STR = os.getenv('EMAIL_RECEIVER')
+EMAIL_CC_STR = os.getenv('EMAIL_CC')
+EMAIL_RECEIVER = EMAIL_RECEIVER_STR.split(',') if EMAIL_RECEIVER_STR else []
+EMAIL_CC = EMAIL_CC_STR.split(',') if EMAIL_CC_STR else []
+
 SMTP_SERVER = 'smtp.hostinger.com'
 SMTP_PORT = 587
 
@@ -139,6 +143,13 @@ def calculate_delivery():
 def send_email_notification(subject, body):
     """Sends an email notification."""
     try:
+        # --- DEBUGGING: Log the values being used ---
+        app.logger.info(f"Attempting to send email.")
+        app.logger.info(f"SENDER: {EMAIL_SENDER}")
+        app.logger.info(f"RECEIVERS: {EMAIL_RECEIVER}")
+        app.logger.info(f"CC: {EMAIL_CC}")
+        # --- END DEBUGGING ---
+
         msg = MIMEMultipart()
         msg['From'] = EMAIL_SENDER
         # Join the list of recipients into a comma-separated string for the 'To' header
@@ -241,6 +252,14 @@ def handle_email_request():
         return jsonify({'status': 'error', 'message': 'Failed to send email notification.'}), 500
 
 if __name__ == '__main__':
+    # Verify that all required environment variables are set
+    required_vars = [
+        'WHATSAPP_BUSINESS_ID', 'WHATSAPP_ACCESS_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID',
+        'EMAIL_SENDER', 'EMAIL_PASSWORD', 'EMAIL_RECEIVER'
+    ]
+    for var in required_vars:
+        if not os.getenv(var):
+            raise RuntimeError(f"Environment variable '{var}' is not set. Please set it before running the application.")
+
     # In production, you would use a WSGI server like Gunicorn
     app.run(host='0.0.0.0', port=5000)
-
