@@ -94,7 +94,7 @@ def calculate_delivery():
             
             # Calculate estimated time and apply new rules
             estimated_time_travel = (distance_km / AVERAGE_SPEED_KMPH) * 60
-            estimated_time_total = estimated_time_travel + MIN_COOKING_TIME_MINS
+            estimated_time_total = estimated_time_travel + MIN_COOKING_TIME_MINs
             estimated_time_rounded = round_up_to_nearest_five(estimated_time_total)
             
             # Calculate total amount and apply new rules
@@ -221,28 +221,40 @@ def handle_whatsapp_request():
     else:
         return jsonify({'status': 'error', 'message': 'Failed to send WhatsApp message.'}), 500
 
-@app.route('/send-email', methods=['POST'])
-def handle_email_request():
+@app.route('/send-order-confirmation', methods=['POST'])
+def handle_order_confirmation_request():
     data = request.json
     
-    email_subject = "New Order Received from Mobile AI Agent"
+    email_subject = "Your Foods Spot Order Confirmation"
     email_body = f"""
-    A new order has been received via your mobile AI agent.
+    Hello {data.get('customer_name')},
 
-    Customer Details:
-    Name: {data.get('customer_name')}
-    Contact #: {data.get('customer_phone')}
-    Address: {data.get('delivery_address')}
+    Thank you for your order! Your order has been placed and will be delivered shortly.
 
+    ---
     Order Details:
-    {data.get('order_details')}
-
-    Amount: {data.get('total_amount')} PKR
-
+    ---
+    
+    Order: {data.get('order_details')}
+    Total Amount: {data.get('total_amount')} PKR
+    
+    ---
+    Delivery Information:
+    ---
+    
+    Name: {data.get('customer_name')}
+    Phone Number: {data.get('customer_phone')}
+    Delivery Address: {data.get('delivery_address')}
+    
     Special Instructions:
     {data.get('special_instructions')}
     
-    Thank you!
+    ---
+    
+    Thank you for choosing Foods Spot!
+    
+    Sincerely,
+    The Foods Spot Team
     """
     
     success = send_email_notification(email_subject, email_body)
